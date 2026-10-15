@@ -6,35 +6,14 @@ This checklist defines what we measure about the chatbot's answers, what each re
 
 | Criterion | Needs | Covered by the current setup? |
 | --- | --- | --- |
-| 1. Faithfulness and citations | Cited sources | No |
-| 2. Correctness and completeness | Reference facts | Partly: Factual Correctness in recall mode covers completeness. Correctness is not covered; it needs a separate contradiction judge |
-| 3. Retrieval | Retrieved and expected source IDs | No |
+| 1. Correctness and completeness | Reference facts | Partly: Factual Correctness in recall mode covers completeness. Correctness is not covered; it needs a separate contradiction judge |
+| 2. Retrieval | Retrieved, cited and expected source IDs | No |
 
 The current setup uses Factual Correctness, Answer Accuracy and Semantic Similarity. Answer Accuracy gives only a rough right/wrong signal, and Semantic Similarity covers no criterion; we keep it only to flag answers that changed a lot between versions.
 
 Some criteria from earlier versions of this checklist were dropped; see [Criteria we do not measure](#criteria-we-do-not-measure).
 
-## 1. Faithfulness and citations
-
-Is every statement in the answer backed by the documentation it cites?
-
-**Why we measure it:** high faithfulness means we find the documentation and quote it correctly. Users can check every statement through its citation, which gives the chatbot a high trust potential.
-
-**Works with:** any question, including real user questions. It needs only the answer and the passages it cites; no reference or label.
-
-**Automated by:** [Ragas Faithfulness](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/faithfulness/), with the passages the answer cites as the context. They are fetched by ID from the documentation snapshot, so no retrieved text needs to be recorded. Ragas splits the answer into claims and checks whether each can be inferred from that context, so a conclusion drawn from several documented facts counts as supported.
-
-**Score:** the Ragas Faithfulness score: supported claims ÷ all claims.
-
-**What the result means:** a high score means what we state is documented, and users can verify it through the citations. A low score means the chatbot states things its cited documentation does not say: invented content, or general knowledge from the model's training instead of our documentation.
-
-**Questions it answers:**
-
-- **Do we need more documentation?** Low faithfulness with high retrieval means the chatbot found the right documentation but had to add statements it does not contain. If this happens regularly, customers are asking questions our documentation does not cover. Correctness tells us what to do about it:
-  - **Correctness high:** the chatbot fills the gap correctly, so users still get right answers. No immediate action needed.
-  - **Correctness low:** users get wrong answers on these topics. If the questions are legitimate, they are candidates for new documentation.
-
-## 2. Correctness and completeness
+## 1. Correctness and completeness
 
 Is the answer true, and does it contain what it should, compared with the reference?
 
@@ -59,7 +38,7 @@ Is the answer true, and does it contain what it should, compared with the refere
 - **Completeness:** Ragas [Factual Correctness](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/factual_correctness/) in recall mode.
 - **Correctness:** the [DeepEval Hallucination metric](https://deepeval.com/docs/metrics-hallucination), which scores an answer by its contradictions with ground-truth reference material.
 
-## 3. Retrieval
+## 2. Retrieval
 
 Did the chatbot find and use the right source? This needs only IDs, no retrieved text.
 
@@ -80,7 +59,7 @@ We do not score how much irrelevant content was retrieved. Our agent is designed
 - **If we improve chunking, do we retrieve information better?**
 - **Does llms.txt work better than RAG as a retrieval method?** This works as long as both methods return source IDs, so Found and Used can be computed the same way for each.
 
-**Based on:** "Found" is standard recall@k from information retrieval, comparable to [Ragas Context Recall](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/), but computed from IDs instead of retrieved text. "Used" is our addition, built on the citations from criterion 1.
+**Based on:** "Found" is standard recall@k from information retrieval, comparable to [Ragas Context Recall](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/), but computed from IDs instead of retrieved text. "Used" is our addition, computed from the source IDs the answer cites.
 
 ## Criteria we do not measure
 
@@ -88,13 +67,14 @@ These criteria were part of earlier versions of this checklist and were dropped.
 
 | Criterion | Why we dropped it |
 | --- | --- |
-| Abstention (hallucination check) | Not needed. Faithfulness and correctness serve the same goal: getting trustworthy answers. |
+| Faithfulness and citations | Completeness covers it better. |
+| Abstention (hallucination check) | Not needed. Correctness and completeness serve the same goal: getting trustworthy answers. |
 | Overall usefulness | Too similar to correctness and completeness: if those are high, usefulness is also high. Low correctness with high usefulness would only tell us the answer format is good. A low score would rarely lead to an action, because how answers are presented stays subjective. We assume high correctness is good enough. |
 | Error severity | Difficult to measure and difficult to act on. A high severity rate only means correctness should be higher. |
 
 ## Worked example
 
-One question followed through all three criteria, with Claude answering through our MCP tools. Parameter names and values are invented for illustration.
+One question followed through both criteria, with Claude answering through our MCP tools. Parameter names and values are invented for illustration.
 
 **Test question:** "What is the default bus-off recovery time, and what is it set to in my project?"
 
@@ -114,9 +94,8 @@ Section D-42 does not mention bus load.
 
 | Criterion | What is checked | Result |
 | --- | --- | --- |
-| 1. Faithfulness and citations | Ragas Faithfulness, with the cited sources D-42 and CanChannel1 as context | 2 of 3 supported; the bus-load claim is not supported by D-42 |
-| 2. Correctness and completeness | Answer against the required facts; the project value is checked by a script against the configuration | Correct, complete 2 of 2; the bus-load claim is reported as "not in reference" |
-| 3. Retrieval | Are D-42 and CanChannel1 among the retrieved IDs, and among the cited IDs? | Found and used |
+| 1. Correctness and completeness | Answer against the required facts; the project value is checked by a script against the configuration | Correct, complete 2 of 2; the bus-load claim is reported as "not in reference" |
+| 2. Retrieval | Are D-42 and CanChannel1 among the retrieved IDs, and among the cited IDs? | Found and used |
 
 The evaluation never reads the 8 retrieved chunks. It only needs MCP tools that return an ID with each chunk, and Claude instructed to cite those IDs in its answer.
 
@@ -128,11 +107,10 @@ The evaluation never reads the 8 retrieved chunks. It only needs MCP tools that 
 
 | Criterion | v2.3 | v2.4 | Change |
 | --- | --- | --- | --- |
-| 1. Faithfulness: supported claims | 88% | 93% | +5 |
-| 2. Correctness: no contradictions with the reference answer | 86% | 87% | +1 (within noise) |
-| 2. Completeness: required facts present | 74% | 81% | +7 |
-| 3. Retrieval: expected source found | 92% | 92% | 0 |
-| 3. Retrieval: expected source used | 78% | 85% | +7 |
+| 1. Correctness: no contradictions with the reference answer | 86% | 87% | +1 (within noise) |
+| 1. Completeness: required facts present | 74% | 81% | +7 |
+| 2. Retrieval: expected source found | 92% | 92% | 0 |
+| 2. Retrieval: expected source used | 78% | 85% | +7 |
 
 ## Practical guides
 
@@ -145,4 +123,4 @@ Step-by-step guides for implementing the checklist, written for practitioners ra
 | [Ragas: Evaluate and Improve a RAG App](https://docs.ragas.io/en/stable/howtos/applications/evaluate-and-improve-rag/) | A hands-on walkthrough of evaluating a RAG application end to end |
 | [Evidently AI: A complete guide to RAG evaluation](https://www.evidentlyai.com/llm-guide/rag-evaluation) | Overview of retrieval and answer evaluation, with and without reference answers, and generating synthetic test data |
 | [Evidently AI: RAG evaluation tutorial](https://docs.evidentlyai.com/examples/LLM_rag_evals) | A notebook that scores retrieval and answers and produces a report |
-| [DeepEval: Hallucination metric](https://deepeval.com/docs/metrics-hallucination) | A ready-made contradiction check against reference material (criterion 2) |
+| [DeepEval: Hallucination metric](https://deepeval.com/docs/metrics-hallucination) | A ready-made contradiction check against reference material (criterion 1) |
