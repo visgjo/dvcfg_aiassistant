@@ -7,7 +7,7 @@ This checklist defines what we measure about the chatbot's answers, what each re
 | Criterion | Needs | Covered by the current setup? |
 | --- | --- | --- |
 | 1. Correctness and completeness | Reference facts | Partly: Factual Correctness in recall mode covers completeness. Correctness is not covered; it needs a separate contradiction judge |
-| 2. Retrieval | Expected references, and the references the answer used | No |
+| 2. Retrieval | Expected references, the references found, and the references the answer used | No |
 
 The current setup uses Factual Correctness, Answer Accuracy and Semantic Similarity. Answer Accuracy gives only a rough right/wrong signal, and Semantic Similarity covers no criterion; we keep it only to flag answers that changed a lot between versions.
 
@@ -40,7 +40,7 @@ Is the answer true, and does it contain what it should, compared with the refere
 
 ## 2. Retrieval
 
-Did the chatbot use the right references as sources for its answer?
+Did the chatbot find the right references, and use them as sources for its answer?
 
 **Why we measure it:** it tells us how good our retrieval method is (for example RAG), and whether the agent actually uses the information it is given.
 
@@ -51,14 +51,15 @@ Did the chatbot use the right references as sources for its answer?
 
 **Scores:**
 
-1. **Expected references used** = expected references used ÷ expected references
-2. **Relevant references used** = relevant references used (expected + other relevant) ÷ expected references
+1. **Expected references found** = expected references found ÷ expected references
+2. **Expected references used** = expected references used ÷ expected references
+3. **Relevant references used** = relevant references used (expected + other relevant) ÷ expected references
 
-Both scores share the same denominator, so the second can exceed 100% when the answer uses relevant references beyond the expected ones.
+All three scores share the same denominator, so the third can exceed 100% when the answer uses relevant references beyond the expected ones.
 
-**What the result means:** the first score tells us whether the answer used the references we expected. The difference between the two tells us whether we are also finding relevant references that the expert did not list. This can be good or bad, so those extra references should be reviewed, and added to the expected references if they belong there.
+**What the result means:** the first score tells us whether our retrieval method can actually find the information we expect. The second tells us whether the answer used the references we expected. The difference between the second and third tells us whether we are also finding relevant references that the expert did not list. This can be good or bad, so those extra references should be reviewed, and added to the expected references if they belong there.
 
-**Questions it answers:** run the same test set before and after each change, and compare both scores.
+**Questions it answers:** run the same test set before and after each change, and compare the scores.
 
 - **Does making our documentation "AI Ready" improve retrieval?**
 - **If we improve chunking, do we retrieve information better?**
@@ -100,7 +101,7 @@ D-55, a section on bus load, was not among the expected references.
 | Criterion | What is checked | Result |
 | --- | --- | --- |
 | 1. Correctness and completeness | Answer against the required facts; the project value is checked by a script against the configuration | Correct, complete 2 of 2; the bus-load claim is reported as "not in reference" |
-| 2. Retrieval | Which references did the answer use, and are they expected or other relevant references? | Expected references used: 2 of 2 (100%). Relevant references used: 3 of 2 (150%); D-55 is relevant but was not expected, so it is reviewed and may be added to the expected references |
+| 2. Retrieval | Which references were found, which did the answer use, and are they expected or other relevant references? | Expected references found: 2 of 2 (100%). Expected references used: 2 of 2 (100%). Relevant references used: 3 of 2 (150%); D-55 is relevant but was not expected, so it is reviewed and may be added to the expected references |
 
 The evaluation never reads the 8 retrieved chunks. It only needs MCP tools that return a reference with each chunk, and Claude instructed to cite those references in its answer.
 
@@ -114,6 +115,7 @@ The evaluation never reads the 8 retrieved chunks. It only needs MCP tools that 
 | --- | --- | --- | --- |
 | 1. Correctness: no contradictions with the reference answer | 86% | 87% | +1 (within noise) |
 | 1. Completeness: required facts present | 74% | 81% | +7 |
+| 2. Retrieval: expected references found | 92% | 92% | 0 |
 | 2. Retrieval: expected references used | 78% | 85% | +7 |
 | 2. Retrieval: relevant references used | 91% | 104% | +13 |
 
