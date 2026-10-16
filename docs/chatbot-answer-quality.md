@@ -69,8 +69,8 @@ These criteria were part of earlier versions of this checklist and were dropped.
 | --- | --- |
 | Faithfulness and citations | Completeness covers it better. |
 | Abstention (hallucination check) | Not needed. Correctness and completeness serve the same goal: getting trustworthy answers. |
-| Overall usefulness | Too similar to correctness and completeness: if those are high, usefulness is also high. Low correctness with high usefulness would only tell us the answer format is good. A low score would rarely lead to an action, because how answers are presented stays subjective. We assume high correctness is good enough. |
-| Error severity | Difficult to measure and difficult to act on. A high severity rate only means correctness should be higher. |
+| Overall usefulness | Meant to measure how well we deliver our answers, regardless of whether they are correct: mostly their format. But a high usefulness score is hard to explain, since it will likely come with high correctness and completeness. |
+| Error severity | Meant as a separate quality measure, since a small error with high consequences can make an answer much worse. But it calls for the same action as correctness and completeness together: it only means those two scores should be even higher. |
 
 ## Worked example
 
