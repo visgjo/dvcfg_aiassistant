@@ -7,7 +7,7 @@ This checklist defines what we measure about the chatbot's answers, what each re
 | Criterion | Needs | Covered by the current setup? |
 | --- | --- | --- |
 | 1. Correctness and completeness | Reference facts | Partly: Factual Correctness in recall mode covers completeness. Correctness is not covered; it needs a separate contradiction judge |
-| 2. Retrieval | Retrieved, cited and expected source IDs | No |
+| 2. Retrieval | Expected references, and the references the answer used | No |
 
 The current setup uses Factual Correctness, Answer Accuracy and Semantic Similarity. Answer Accuracy gives only a rough right/wrong signal, and Semantic Similarity covers no criterion; we keep it only to flag answers that changed a lot between versions.
 
@@ -40,26 +40,31 @@ Is the answer true, and does it contain what it should, compared with the refere
 
 ## 2. Retrieval
 
-Did the chatbot find and use the right source? This needs only IDs, no retrieved text.
+Did the chatbot use the right references as sources for its answer?
 
 **Why we measure it:** it tells us how good our retrieval method is (for example RAG), and whether the agent actually uses the information it is given.
 
-**Works with:** test questions with expected source IDs. For generated questions these are recorded automatically: the documentation section or project element the question was generated from. For expert-written questions, an expert has to add them.
+**Works with:** test questions with expected references.
 
-- **Found:** the expected source is among the retrieved IDs.
-- **Used:** the expected source is among the cited sources.
+- **Expected reference:** a reference an expert has already judged relevant to the question, and expects the answer to use as a source.
+- **Relevant reference:** any reference that provides relevant information for the question. This includes the expected references, and any other reference that turns out to be relevant.
 
-We do not score how much irrelevant content was retrieved. Our agent is designed to read a lot and select what is useful.
+**Scores:**
 
-**What the result means:** both high means retrieval works, and remaining failures come from how answers are written. Found but not used means the agent had the right material but picked or read the wrong part. Not found means the search itself is the problem, so improving the prompt will not help.
+1. **Expected references used** = expected references used ÷ expected references
+2. **Relevant references used** = relevant references used (expected + other relevant) ÷ expected references
 
-**Questions it answers:** run the same test set before and after each change, and compare Found and Used.
+Both scores share the same denominator, so the second can exceed 100% when the answer uses relevant references beyond the expected ones.
+
+**What the result means:** the first score tells us whether the answer used the references we expected. The difference between the two tells us whether we are also finding relevant references that the expert did not list. This can be good or bad, so those extra references should be reviewed, and added to the expected references if they belong there.
+
+**Questions it answers:** run the same test set before and after each change, and compare both scores.
 
 - **Does making our documentation "AI Ready" improve retrieval?**
 - **If we improve chunking, do we retrieve information better?**
-- **Does llms.txt work better than RAG as a retrieval method?** This works as long as both methods return source IDs, so Found and Used can be computed the same way for each.
+- **Does llms.txt work better than RAG as a retrieval method?**
 
-**Based on:** "Found" is standard recall@k from information retrieval, comparable to [Ragas Context Recall](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/), but computed from IDs instead of retrieved text. "Used" is our addition, computed from the source IDs the answer cites.
+**Based on:** [Ragas ID Based Context Recall](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/), which compares references instead of retrieved text. At the very least, we can indicate the document each reference was found in.
 
 ## Criteria we do not measure
 
@@ -78,26 +83,26 @@ One question followed through both criteria, with Claude answering through our M
 
 **Test question:** "What is the default bus-off recovery time, and what is it set to in my project?"
 
-**Stored in the test set:** required facts (default 100 ms; project value 50 ms) and the expected sources `D-42` and `CanChannel1`.
+**Stored in the test set:** required facts (default 100 ms; project value 50 ms) and the expected references `D-42` and `CanChannel1`.
 
 **During the run:**
 
-1. Claude calls the documentation search tool and receives 8 large chunks. Our MCP server logs only their IDs: `D-17, D-42, D-55, …`
+1. Claude calls the documentation search tool and receives 8 large chunks. Our MCP server logs only which references they come from: `D-17, D-42, D-55, …`
 2. Claude calls the project tool. The server logs `CanChannel1`.
-3. Claude reads everything, selects what is relevant, and answers with an ID for each statement.
+3. Claude reads everything, selects what is relevant, and answers with a reference for each statement.
 
-> The default bus-off recovery time is 100 ms \[D-42\]. In your project it is set to 50 ms \[CanChannel1\]. Shorter times recover faster but increase bus load \[D-42\].
+> The default bus-off recovery time is 100 ms \[D-42\]. In your project it is set to 50 ms \[CanChannel1\]. Shorter times recover faster but increase bus load \[D-55\].
 
-Section D-42 does not mention bus load.
+D-55, a section on bus load, was not among the expected references.
 
 **Grading:**
 
 | Criterion | What is checked | Result |
 | --- | --- | --- |
 | 1. Correctness and completeness | Answer against the required facts; the project value is checked by a script against the configuration | Correct, complete 2 of 2; the bus-load claim is reported as "not in reference" |
-| 2. Retrieval | Are D-42 and CanChannel1 among the retrieved IDs, and among the cited IDs? | Found and used |
+| 2. Retrieval | Which references did the answer use, and are they expected or other relevant references? | Expected references used: 2 of 2 (100%). Relevant references used: 3 of 2 (150%); D-55 is relevant but was not expected, so it is reviewed and may be added to the expected references |
 
-The evaluation never reads the 8 retrieved chunks. It only needs MCP tools that return an ID with each chunk, and Claude instructed to cite those IDs in its answer.
+The evaluation never reads the 8 retrieved chunks. It only needs MCP tools that return a reference with each chunk, and Claude instructed to cite those references in its answer.
 
 ## Reporting and reliability
 
@@ -109,8 +114,8 @@ The evaluation never reads the 8 retrieved chunks. It only needs MCP tools that 
 | --- | --- | --- | --- |
 | 1. Correctness: no contradictions with the reference answer | 86% | 87% | +1 (within noise) |
 | 1. Completeness: required facts present | 74% | 81% | +7 |
-| 2. Retrieval: expected source found | 92% | 92% | 0 |
-| 2. Retrieval: expected source used | 78% | 85% | +7 |
+| 2. Retrieval: expected references used | 78% | 85% | +7 |
+| 2. Retrieval: relevant references used | 91% | 104% | +13 |
 
 ## Practical guides
 
